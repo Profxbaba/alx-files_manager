@@ -1,9 +1,18 @@
+// utils/redis.js
+
 const redis = require('redis');
 
 class RedisClient {
   constructor() {
     this.client = redis.createClient();
-    this.client.on('error', (err) => console.error('Redis client error:', err));
+
+    this.client.on('error', (err) => {
+      console.error('Redis client error:', err);
+    });
+
+    this.client.on('connect', () => {
+      console.log('Redis client connected');
+    });
   }
 
   isAlive() {
@@ -14,10 +23,9 @@ class RedisClient {
     return new Promise((resolve, reject) => {
       this.client.get(key, (err, value) => {
         if (err) {
-          reject(err);
-        } else {
-          resolve(value);
+          return reject(err);
         }
+        resolve(value);
       });
     });
   }
@@ -26,10 +34,9 @@ class RedisClient {
     return new Promise((resolve, reject) => {
       this.client.setex(key, duration, value, (err) => {
         if (err) {
-          reject(err);
-        } else {
-          resolve(true);
+          return reject(err);
         }
+        resolve(true);
       });
     });
   }
@@ -38,10 +45,9 @@ class RedisClient {
     return new Promise((resolve, reject) => {
       this.client.del(key, (err) => {
         if (err) {
-          reject(err);
-        } else {
-          resolve(true);
+          return reject(err);
         }
+        resolve(true);
       });
     });
   }
