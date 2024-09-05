@@ -1,19 +1,12 @@
 import express from 'express';
-import bodyParser from 'body-parser';
-import router from './routes/index';
+import routes from './routes/index.js'; // Ensure this path and file extension
 
 const app = express();
+const port = process.env.PORT || 5000;
 
-// Middleware
-app.use(bodyParser.json());
+app.use(express.json());
+app.use('/', routes);
 
-// Use routes
-app.use('/', router);
-
-// Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });
-
-export default app;

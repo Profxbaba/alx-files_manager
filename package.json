@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "lint": "./node_modules/.bin/eslint",
     "check-lint": "lint [0-9]*.js",
@@ -26,7 +27,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@babel/cli": "^7.8.0",
+    "@babel/cli": "^7.25.6",
     "@babel/core": "^7.25.2",
     "@babel/node": "^7.25.0",
     "@babel/preset-env": "^7.25.4",
@@ -42,7 +43,7 @@
     "eslint-plugin-react": "^7.35.2",
     "eslint-plugin-vue": "^9.28.0",
     "mocha": "^6.2.2",
-    "nodemon": "^2.0.22",
+    "nodemon": "^3.1.4",
     "request": "^2.88.0",
     "sinon": "^7.5.0"
   }
