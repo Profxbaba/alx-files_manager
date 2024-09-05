@@ -1,39 +1,36 @@
-import crypto from 'crypto';
-import dbClient from '../utils/db';  // Ensure this path is correct
+import redisClient from '../utils/redis';
+import dbClient from '../utils/db';
+import { ObjectId } from 'mongodb';
 
 class UsersController {
-  static async postNew(req, res) {
-    const { email, password } = req.body;
+  static async getMe(req, res) {
+    const token = req.headers['x-token'];
 
-    if (!email) {
-      return res.status(400).json({ error: 'Missing email' });
-    }
-    if (!password) {
-      return res.status(400).json({ error: 'Missing password' });
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     try {
-      const db = dbClient.db('files_manager');  // Ensure database name is correct
-      const existingUser = await db.collection('users').findOne({ email });
+      // Retrieve user ID from Redis using the token
+      const userId = await redisClient.get(`auth_${token}`);
 
-      if (existingUser) {
-        return res.status(400).json({ error: 'Already exist' });
+      if (!userId) {
+        console.log('Token not found in Redis');
+        return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const hashedPassword = crypto.createHash('sha1').update(password).digest('hex');
+      // Retrieve user from MongoDB
+      const db = dbClient.db('files_manager');
+      const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
 
-      const result = await db.collection('users').insertOne({
-        email,
-        password: hashedPassword
-      });
+      if (!user) {
+        console.log('User not found in DB');
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
 
-      const newUser = result.ops[0];
-      res.status(201).json({
-        id: newUser._id,
-        email: newUser.email
-      });
+      res.status(200).json({ id: user._id.toString(), email: user.email });
     } catch (error) {
-      console.error('Error creating user:', error);
+      console.error('Error retrieving user:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   }

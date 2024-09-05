@@ -1,20 +1,12 @@
-import Redis from 'ioredis';
+import redis from 'redis';
 
-class RedisClient {
-  constructor() {
-    this.client = new Redis();
-  }
+const redisClient = redis.createClient({
+  host: 'localhost', // Update if needed
+  port: 6379          // Update if needed
+});
 
-  async ping() {
-    try {
-      await this.client.ping();
-      return true;
-    } catch (error) {
-      console.error('Redis ping failed:', error);
-      return false;
-    }
-  }
-}
+redisClient.on('error', (err) => {
+  console.error('Redis error:', err);
+});
 
-const redisClient = new RedisClient();
 export default redisClient;
