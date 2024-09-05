@@ -1,5 +1,3 @@
-// utils/db.js
-
 import { MongoClient } from 'mongodb';
 
 class DBClient {
@@ -23,8 +21,14 @@ class DBClient {
       });
   }
 
-export const isAlive = async () => {
-    return true; // or false if not connected
+  async isAlive() {
+    try {
+      await this.db.command({ ping: 1 });
+      return true;
+    } catch (error) {
+      console.error('MongoDB ping failed:', error);
+      return false;
+    }
   }
 
   async nbUsers() {
