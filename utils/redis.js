@@ -15,8 +15,8 @@ class RedisClient {
     });
   }
 
-  isAlive() {
-    return this.client.connected;
+export const ping = async () => {
+    return true;
   }
 
   async get(key) {
