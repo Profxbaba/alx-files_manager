@@ -1,8 +1,12 @@
 import express from 'express';
-import FilesController from '../controllers/FilesController.js'; // Ensure this path and file extension
+import FilesController from '../controllers/FilesController';
 
 const router = express.Router();
 
-router.post('/files', FilesController.postUpload);
+// GET /files/:id => FilesController.getShow
+router.get('/files/:id', FilesController.getShow);
+
+// GET /files => FilesController.getIndex
+router.get('/files', FilesController.getIndex);
 
 export default router;

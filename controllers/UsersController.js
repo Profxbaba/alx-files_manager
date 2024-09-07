@@ -1,39 +1,42 @@
-import redisClient from '../utils/redis';
-import dbClient from '../utils/db';
-import { ObjectId } from 'mongodb';
+// Import the Bull queue
+const Bull = require('bull');
+const dbClient = require('../utils/db');
+
+// Create the userQueue
+const userQueue = new Bull('userQueue', 'redis://127.0.0.1:6379');
 
 class UsersController {
-  static async getMe(req, res) {
-    const token = req.headers['x-token'];
-
-    if (!token) {
-      return res.status(401).json({ error: 'Unauthorized' });
+  static async postNew(req, res) {
+    const { email, password } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Missing email' });
+    }
+    
+    if (!password) {
+      return res.status(400).json({ error: 'Missing password' });
     }
 
-    try {
-      // Retrieve user ID from Redis using the token
-      const userId = await redisClient.get(`auth_${token}`);
-
-      if (!userId) {
-        console.log('Token not found in Redis');
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-
-      // Retrieve user from MongoDB
-      const db = dbClient.db('files_manager');
-      const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
-
-      if (!user) {
-        console.log('User not found in DB');
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-
-      res.status(200).json({ id: user._id.toString(), email: user.email });
-    } catch (error) {
-      console.error('Error retrieving user:', error);
-      res.status(500).json({ error: 'Internal server error' });
+    const userExists = await dbClient.users.findOne({ email });
+    
+    if (userExists) {
+      return res.status(400).json({ error: 'Already exists' });
     }
+
+    const hashedPassword = await dbClient.hashPassword(password);
+
+    const newUser = await dbClient.users.insertOne({
+      email,
+      password: hashedPassword,
+    });
+
+    const userId = newUser.insertedId;
+
+    // Add a job to the queue to send a welcome email
+    userQueue.add({ userId });
+
+    return res.status(201).json({ id: userId, email });
   }
 }
 
-export default UsersController;
+module.exports = UsersController;

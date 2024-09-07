@@ -1,94 +1,74 @@
-import fs from 'fs';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
-import redis from '../utils/redis.js';
-import dbClient from '../utils/db';
+import { MongoClient } from 'mongodb';
+import { getUserFromToken } from '../utils/redis'; // Adjust path if needed
 
-class FilesController {
-  static async postUpload(req, res) {
-    const { name, type, parentId, isPublic = false, data } = req.body;
+const dbUrl = 'mongodb://localhost:27017';
+const dbName = 'file_manager_db';
+
+async function getShow(req, res) {
+    const { id } = req.params;
     const token = req.headers['x-token'];
 
     if (!token) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    if (!name) {
-      return res.status(400).json({ error: 'Missing name' });
-    }
-
-    if (!type || !['folder', 'file', 'image'].includes(type)) {
-      return res.status(400).json({ error: 'Missing type' });
-    }
-
-    if (type !== 'folder' && !data) {
-      return res.status(400).json({ error: 'Missing data' });
+        return res.status(401).json({ error: 'Unauthorized' });
     }
 
     try {
-      // Retrieve user ID from Redis using the token
-      const userId = await redisClient.get(`auth_${token}`);
-      if (!userId) {
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-
-      // Validate parentId if provided
-      if (parentId) {
-        const db = dbClient.db('files_manager');
-        const parent = await db.collection('files').findOne({ _id: new ObjectId(parentId) });
-
-        if (!parent) {
-          return res.status(400).json({ error: 'Parent not found' });
+        const user = await getUserFromToken(token);
+        if (!user) {
+            return res.status(401).json({ error: 'Unauthorized' });
         }
 
-        if (parent.type !== 'folder') {
-          return res.status(400).json({ error: 'Parent is not a folder' });
-        }
-      }
+        const client = await MongoClient.connect(dbUrl, { useNewUrlParser: true, useUnifiedTopology: true });
+        const db = client.db(dbName);
+        const filesCollection = db.collection('files');
 
-      let localPath = null;
-
-      // Save file data to disk if type is not 'folder'
-      if (type !== 'folder') {
-        const folderPath = process.env.FOLDER_PATH || '/tmp/files_manager';
-        if (!fs.existsSync(folderPath)) {
-          fs.mkdirSync(folderPath, { recursive: true });
+        const file = await filesCollection.findOne({ _id: id, userId: user._id });
+        if (!file) {
+            return res.status(404).json({ error: 'Not Found' });
         }
 
-        const fileId = uuidv4();
-        localPath = path.join(folderPath, fileId);
-
-        // Write the file content to disk
-        fs.writeFileSync(localPath, Buffer.from(data, 'base64'));
-      }
-
-      // Save file metadata to database
-      const db = dbClient.db('files_manager');
-      const newFile = {
-        userId: new ObjectId(userId),
-        name,
-        type,
-        isPublic,
-        parentId: parentId ? new ObjectId(parentId) : 0,
-        localPath,
-      };
-
-      const result = await db.collection('files').insertOne(newFile);
-      const file = result.ops[0];
-
-      res.status(201).json({
-        id: file._id.toString(),
-        userId: file.userId.toString(),
-        name: file.name,
-        type: file.type,
-        isPublic: file.isPublic,
-        parentId: file.parentId.toString(),
-      });
+        res.json(file);
+        client.close();
     } catch (error) {
-      console.error('Error uploading file:', error);
-      res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Internal Server Error' });
     }
-  }
 }
 
-export default FilesController;
+async function getIndex(req, res) {
+    const { parentId = 0, page = 0 } = req.query;
+    const token = req.headers['x-token'];
+
+    if (!token) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    try {
+        const user = await getUserFromToken(token);
+        if (!user) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const client = await MongoClient.connect(dbUrl, { useNewUrlParser: true, useUnifiedTopology: true });
+        const db = client.db(dbName);
+        const filesCollection = db.collection('files');
+
+        const limit = 20;
+        const skip = page * limit;
+
+        const files = await filesCollection
+            .find({ parentId, userId: user._id })
+            .skip(skip)
+            .limit(limit)
+            .toArray();
+
+        res.json(files);
+        client.close();
+    } catch (error) {
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+}
+
+export default {
+    getShow,
+    getIndex,
+};

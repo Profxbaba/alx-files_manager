@@ -1,12 +1,23 @@
-import { MongoClient } from 'mongodb';
+const { MongoClient } = require('mongodb');
+const bcrypt = require('bcrypt');
 
-const uri = 'mongodb://localhost:27017/files_manager'; // Update if needed
-const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
-
-client.connect((err) => {
-  if (err) {
-    console.error('MongoDB connection error:', err);
+class DBClient {
+  constructor() {
+    this.client = new MongoClient('mongodb://localhost:27017');
+    this.client.connect()
+      .then(() => {
+        this.db = this.client.db('file_manager');
+        this.users = this.db.collection('users');
+      })
+      .catch((error) => console.error('Error connecting to DB:', error));
   }
-});
 
-export default client;
+  // Hash a password
+  async hashPassword(password) {
+    const saltRounds = 10;
+    return bcrypt.hash(password, saltRounds);
+  }
+}
+
+const dbClient = new DBClient();
+module.exports = dbClient;

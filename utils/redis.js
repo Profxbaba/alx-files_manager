@@ -1,12 +1,14 @@
 import redis from 'redis';
 
-const redisClient = redis.createClient({
-  host: 'localhost', // Update if needed
-  port: 6379          // Update if needed
-});
+const client = redis.createClient();
 
-redisClient.on('error', (err) => {
-  console.error('Redis error:', err);
-});
-
-export default redisClient;
+export function getUserFromToken(token) {
+    return new Promise((resolve, reject) => {
+        client.get(token, (err, userJson) => {
+            if (err) {
+                return reject(err);
+            }
+            resolve(JSON.parse(userJson));
+        });
+    });
+}
